@@ -17,7 +17,7 @@ The Embedding-Eval-Framework is the bachelor thesis project of Paul Wagner.
 
 
 ## Roadmap
-- [ ] CLI-Tools: Click (cli-framework), Tensorboard (machine-learning-visulization), tqdm (progress-bars)
+- [ ] CLI-Tools: Click (cli-framework), Tensorboard (machine-learning-visualization), tqdm (progress-bars)
 - [ ] Answer: How to make a good decoder-setup?
 
 
