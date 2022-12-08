@@ -13,11 +13,11 @@ The Embedding-Eval-Framework is the bachelor thesis project of Paul Wagner.
 - It tries to generate a decoder with ML that is capable of predicting graph edges
 - Idea: if the decoder-setup is generally chosen "good", then it should be able to generate a decoder, that is able to predict edges. If the generated decoder cannot predict edges, then the embedding/embedder was chosen poorly.
 - Question: How to make a good decoder-setup.
-- This workflow will be presented in a visual application
+- This workflow will be presented in a cli application
 
 
 ## Roadmap
-- [ ] Decide on an application framework (maybe [electron-app](https://www.electronjs.org/de/), [flask-api](https://github.com/pallets/flask) with [progress](https://github.com/simonw/datasette-app/issues/109) and [decoder-framework](?) )
+- [ ] CLI-Tools: Click (cli-framework), Tensorboard (machine-learning-visulization), tqdm (progress-bars)
 - [ ] Answer: How to make a good decoder-setup?
 
 
