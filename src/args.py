@@ -1,23 +1,36 @@
-from dataclasses import dataclass
+import random
+from dataclasses import dataclass, field
+
+from typing import List, Tuple
 
 
 @dataclass(
     repr=True
 )
 class Args:
-    random_seed = None
     # torch
-    batch_size = 10
-    epochs = 100
-    layers = 10
-    layer_size = 16
-    train_size = 0.8
-    eval_epochs = True
-    # graph
-    graph_size = 800
-    graph_shape = 'disc'
-    rg_radius = 0.05
-    subsample = "bfs"
-    subsample_size = 100
-    subsample_ranking = "node_degree"
-    balance = False
+    batch_size: int = field(default=10)
+    epochs: int = field(default=250)
+    layers: int = field(default=10)
+    layer_size: int = field(default=16)
+    test_split: float = field(default=0.2)
+    valid_split: float = field(default=0.2)
+    eval_epochs: bool = field(default=True)
+    #: int graphfield(default=)
+    random_seed: any = field(default=None)
+    graph_size: int = field(default=1000)
+    rgg_radius: float = field(default=0.05)
+    epoch_graph_size: int = field(default=100)
+    epoch_graph_alpha: float = field(default=0.0)
+    epoch_graph_boredom_pth: float = field(default=0.8)
+
+
+def gridsearch_args() -> List[Args]:
+    return [
+        Args(
+            epoch_graph_size=epoch_graph_size,
+            epoch_graph_alpha=epoch_graph_alpha
+        )
+        for epoch_graph_size in [50, 100, 250]
+        for epoch_graph_alpha in [0, 0.5, 1.0]
+    ]

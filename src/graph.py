@@ -1,7 +1,7 @@
 import math
 import random
 import networkx as nx
-from typing import Set, Tuple, Union, Dict
+from typing import Set, Tuple, Union, Dict, List
 
 # Type alias to make the code more comprehensible
 NodeData = Dict
@@ -30,26 +30,30 @@ def random_geometric_graph(size: int, radius: float) -> nx.Graph:
     return graph
 
 
-def subgraph(graph: nx.Graph, size: int, alpha: float = 1.0, boredom_pth: float = 0.3) -> nx.Graph:
-    curr: Union[NodeId, None] = None
+def subgraph(graph: nx.Graph, size: int, alpha: float = 1.0, boredom_pth: float = 0.3, ignore=None) -> (nx.Graph, Set[NodeId]):
+    curr_node: Union[NodeId, None] = None
     sampled: Set[NodeId] = set()
     boredom: int = 0  # escape parameter in case it walks on a too small component, enforces jumps
     while len(sampled) < size:
-        neighbors = list(graph.neighbors(curr)) if curr is not None else []
+        neighbors = list(graph.neighbors(curr_node)) if curr_node is not None else []
         # random jump (first iteration is always a jump)
         if len(neighbors) == 0 \
-                or alpha == 1 \
-                or random.random() >= alpha \
+                or random.random() < alpha \
                 or (boredom > size * boredom_pth):
-            curr = random.choice(list(graph.nodes))
+            next_node = random.choice(list(graph.nodes))
         # random walk
         else:
-            curr = random.choice(neighbors)
+            next_node = random.choice(neighbors)
+        # skip ignore list (don't even allow walking over it)
+        if ignore is not None and next_node in ignore:
+            boredom = boredom + 1
+            continue
+        curr_node = next_node
         # add found node if new, otherwise increase boredom
-        if curr in sampled:
+        if curr_node in sampled:
             boredom = boredom + 1
             continue
         boredom = 0
-        sampled.add(curr)
+        sampled.add(curr_node)
     # build subgraph
-    return graph.subgraph(sampled)
+    return graph.subgraph(sampled), sampled
