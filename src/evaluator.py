@@ -333,7 +333,7 @@ class Evaluator:
                 self.writer.add_figure('test_graph', f, epoch)
             pbar.update(1)
 
-            return test_loss, test_ap, test_f1
+            return test_loss, test_ap.item(), test_f1.item()
 
     def eval(self, epoch: Union[int, None] = None, save_fig: bool = True):
         with tqdm(total=4, desc="evaluating model") as pbar:
