@@ -1,13 +1,13 @@
 import random
 from dataclasses import dataclass, field
 
-from typing import List, Tuple
+from typing import List
 
 
 @dataclass(
     repr=True
 )
-class Args:
+class Args:  # TODO use typed dict?
     # torch
     batch_size: int = field(default=10)
     epochs: int = field(default=250)
@@ -16,7 +16,7 @@ class Args:
     test_split: float = field(default=0.2)
     valid_split: float = field(default=0.2)
     eval_epochs: bool = field(default=True)
-    #: int graphfield(default=)
+    # graph
     random_seed: any = field(default=None)
     graph_size: int = field(default=1000)
     rgg_radius: float = field(default=0.05)
@@ -32,5 +32,5 @@ def gridsearch_args() -> List[Args]:
             epoch_graph_alpha=epoch_graph_alpha
         )
         for epoch_graph_size in [50, 100, 250]
-        for epoch_graph_alpha in [0, 0.5, 1.0]
+        for epoch_graph_alpha in [0, 0.25, 0.5, 0.75, 1.0]
     ]
