@@ -30,10 +30,23 @@
 - possibly rank nodes (didn't seem to give improvements)
 - results in a smaller train-dataset and lowers class imbalance
 
+#### Sampling Params
+
+- do grid search for degrees of freedom
+  - search for sample size, connectivity
+  - escape threshold should have little influence and will be constant
+- results
+  - higher sample size gives more consistent (see std) results
+  - even a sample size of 100 gives good results
+  - higher connectivity (see smaller alpha) seems to give better results
+  - most runs reach quite high scores (around 0.96 mean score for the upper half of runs)
+
 ## Examples
 
 ### Random Geometric Graph
-- TODO
+- with no loss of generality: graph on unit-disc centered around `(0.5, 0.5)`
+- generate random positions for nodes
+- two nodes are connected, if the distance between them is smaller than a threshold
 
 ### Power Law Graph
 - TODO
