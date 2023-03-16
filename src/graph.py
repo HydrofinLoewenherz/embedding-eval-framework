@@ -1,7 +1,7 @@
 import math
 import random
 import networkx as nx
-from typing import Set, Tuple, Union, Dict, List
+from typing import Set, Tuple, Union, Dict
 
 # Type alias to make the code more comprehensible
 NodeData = Dict
@@ -10,23 +10,40 @@ NodeWithData = Tuple[NodeId, NodeData]
 NodeDataPairs = Set[Tuple[NodeWithData, NodeWithData]]
 
 
-def random_geometric_graph(size: int, radius: float) -> nx.Graph:
-    # generate positions on unit-disc
-    positions = []
-    while len(positions) < size:
+def gen_disc_pos() -> Tuple[float, float]:
+    while True:
         p = (random.uniform(0, 1), random.uniform(0, 1))
         d = (p[0] - 0.5, p[1] - 0.5)
         if math.sqrt(d[0] * d[0] + d[1] * d[1]) > 0.5:
             continue
-        positions.append(p)
+        return p
+
+
+def random_geometric_graph(size: int, radius: float) -> nx.Graph:
     # generate graph from positions and radius
-    node_positions = {i: p for i, p in enumerate(positions)}
+    node_positions = {i: gen_disc_pos() for i in range(size)}
     graph = nx.random_geometric_graph(
         size,
         radius,
         pos=node_positions
     )
     nx.set_node_attributes(graph, node_positions, name="pos")
+    nx.set_node_attributes(graph, node_positions, name="feature")
+    return graph
+
+
+def random_graph(size: int) -> nx.Graph:
+    node_positions = {i: gen_disc_pos() for i in range(size)}
+    # generate edges (the alg used is not of interest)
+    graph = nx.powerlaw_cluster_graph(
+        n=size,
+        m=int(size / 2),
+        p=0.5
+    )
+    # give nodes random positions and features
+    # even if the graph is a powerlaw-cluster-graph, as long as the embedding is random, it shouldn't give a good score
+    nx.set_node_attributes(graph, node_positions, name="pos")
+    nx.set_node_attributes(graph, node_positions, name="feature")
     return graph
 
 

@@ -13,6 +13,11 @@
 - high class imbalance
   - a lot more non-edges than edges for real life graphs (power law)
 - graph dataset has `O(n²)` edges, therefore can't loop all edges each epoch
+- splitting?
+  - does splitting an embedding destroy the embedding? (unanswered but prob no)
+  - minimize overfitting for general results
+  - use for early stopping
+  - without splitting slight overfitting
 
 ### Balancing
 - weighted sampler over edges 
@@ -40,6 +45,11 @@
   - even a sample size of 100 gives good results
   - higher connectivity (see smaller alpha) seems to give better results
   - most runs reach quite high scores (around 0.96 mean score for the upper half of runs)
+  - not many epochs needed -> use early stopping
+
+#### Run time
+- increases with graph and epoch graph size
+- graph size has a lesser effect on the run time because of const size samples
 
 ## Examples
 
@@ -48,8 +58,15 @@
 - generate random positions for nodes
 - two nodes are connected, if the distance between them is smaller than a threshold
 
-### Power Law Graph
+### Girgs (Power-Law-Graphs)
+- see https://github.com/chistopher/girgs
 - TODO
+
+### Negative Test
+- random graph without structure to its features
+- here: power-law graph with random features
+- no learning takes place (constant precision on validation set)
+- train precision ~ percentage of edges
 
 ## Future
 - correlation between (sub-)graph properties and learning performance

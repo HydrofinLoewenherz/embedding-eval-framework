@@ -25,7 +25,7 @@ class DatasetBuilder:
         self.n_nodes = len(self.graph.nodes(data=False))
         self.n_edges = len(self.graph.edges(data=False))
 
-        self.node_pos_pairs: NodeDataPairs = set(itertools.combinations(self.graph.nodes.data("pos"), 2))
+        self.node_pos_pairs: NodeDataPairs = set(itertools.combinations(self.graph.nodes.data("feature"), 2))
         values, labels = zip(*[
             (
                 [*u_p, *v_p],
@@ -111,7 +111,7 @@ def result_figure(graph: nx.Graph, dataset: DatasetBuilder, preds: List[float],
 
 
 class Evaluator:
-    def __init__(self, args: Args, writer_log_dir: str, device):
+    def __init__(self, graph: nx.Graph, args: Args, writer_log_dir: str, device):
         with tqdm(total=10, desc="building evaluator") as pbar:
             self.loss_fn = nn.BCEWithLogitsLoss()
             self.device = device
@@ -122,10 +122,7 @@ class Evaluator:
                 layer_size=args.layer_size
             ).to(device)
             pbar.update(1)
-            self.graph = random_geometric_graph(
-                size=args.graph_size,
-                radius=args.rgg_radius
-            )
+            self.graph = graph
             pbar.update(1)
             self.whole_dataset = DatasetBuilder(
                 graph=self.graph,
@@ -267,7 +264,7 @@ class Evaluator:
                     patience_counter = 0
                 else:
                     patience_counter += 1
-                    if patience_counter > patience:
+                    if patience_counter > patience and self.args.early_stopping:
                         break
 
                 # save subgraph periodically
