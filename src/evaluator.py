@@ -25,13 +25,13 @@ class DatasetBuilder:
         self.n_nodes = len(self.graph.nodes(data=False))
         self.n_edges = len(self.graph.edges(data=False))
 
-        self.node_pos_pairs: NodeDataPairs = set(itertools.combinations(self.graph.nodes.data("feature"), 2))
+        self.node_feature_pairs: NodeDataPairs = set(itertools.combinations(self.graph.nodes.data("feature"), 2))
         values, labels = zip(*[
             (
-                [*u_p, *v_p],
+                [*u_f, *v_f],
                 1 if graph.has_edge(u, v) else 0
             )
-            for ((u, u_p), (v, v_p)) in self.node_pos_pairs
+            for ((u, u_f), (v, v_f)) in self.node_feature_pairs
         ])
         self.size = len(values)
         self.n_non_edges = self.size - self.n_edges
@@ -57,8 +57,13 @@ class NeuralNetwork(nn.Module):
         return self.linear_relu_stack(x)
 
 
-def result_figure(graph: nx.Graph, dataset: DatasetBuilder, preds: List[float],
-                  threshold: float = 0.5, node_colors: Union[List[str], None] = None) -> any:
+def result_figure(
+        graph: nx.Graph,
+        dataset: DatasetBuilder,
+        preds: List[float],
+        threshold: float = 0.5,
+        node_colors: Union[List[str], None] = None
+) -> any:
     fig, ax = plt.subplots(1, 2)
     node_size = 500 / dataset.n_nodes
 
@@ -84,7 +89,7 @@ def result_figure(graph: nx.Graph, dataset: DatasetBuilder, preds: List[float],
     pred_graph.add_nodes_from(dataset.graph.nodes(data=True))
     pred_graph.add_edges_from([
         (u, v, {"pred": preds[i]})
-        for i, ((u, _), (v, _)) in enumerate(dataset.node_pos_pairs)
+        for i, ((u, _), (v, _)) in enumerate(dataset.node_feature_pairs)
         if preds[i] > threshold
     ])
     colormap = sns.color_palette("flare", as_cmap=True)
@@ -111,14 +116,15 @@ def result_figure(graph: nx.Graph, dataset: DatasetBuilder, preds: List[float],
 
 
 class Evaluator:
-    def __init__(self, graph: nx.Graph, args: Args, writer_log_dir: str, device):
+    def __init__(self, graph: nx.Graph, dim: int, args: Args, writer_log_dir: str, device):
         with tqdm(total=10, desc="building evaluator") as pbar:
             self.loss_fn = nn.BCEWithLogitsLoss()
             self.device = device
             self.args = args
+            self.dim = dim
             self.writer = SummaryWriter(writer_log_dir)
             self.net = NeuralNetwork(
-                input_size=4,
+                input_size=dim*2,
                 layer_size=args.layer_size
             ).to(device)
             pbar.update(1)

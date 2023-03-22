@@ -2,12 +2,40 @@ import math
 import random
 import networkx as nx
 from typing import Set, Tuple, Union, Dict
+from girg_sampling import girgs
 
 # Type alias to make the code more comprehensible
 NodeData = Dict
 NodeId = int
 NodeWithData = Tuple[NodeId, NodeData]
 NodeDataPairs = Set[Tuple[NodeWithData, NodeWithData]]
+
+
+def girg_graph(
+        size: int,
+        ple: float = 2.5,
+        alpha: float = math.inf,
+        deg: float = 10,
+) -> Tuple[nx.Graph, int]:
+    # generate girg
+    weights = girgs.generateWeights(size, ple)
+    positions = girgs.generatePositions(size, 2)
+    weights_scale = girgs.scaleWeights(weights, deg, 2, alpha)
+    scaled_weights = [x * weights_scale for x in weights]
+    edges = girgs.generateEdges(scaled_weights, positions, alpha)
+
+    # convert to NetworkX graph (use pos and weight as feature)
+    node_positions = {i: pos for i, pos in enumerate(positions)}
+    node_features = {
+        i: (*positions[i], scaled_weights[i])
+        for i in range(size)
+    }
+    graph = nx.Graph()
+    graph.add_nodes_from(range(size))
+    nx.set_node_attributes(graph, node_positions, name="pos")
+    nx.set_node_attributes(graph, node_features, name="feature")
+    graph.add_edges_from(edges)
+    return graph, 3
 
 
 def gen_disc_pos() -> Tuple[float, float]:
@@ -19,7 +47,7 @@ def gen_disc_pos() -> Tuple[float, float]:
         return p
 
 
-def random_geometric_graph(size: int, radius: float) -> nx.Graph:
+def random_geometric_graph(size: int, radius: float) -> Tuple[nx.Graph, int]:
     # generate graph from positions and radius
     node_positions = {i: gen_disc_pos() for i in range(size)}
     graph = nx.random_geometric_graph(
@@ -29,12 +57,12 @@ def random_geometric_graph(size: int, radius: float) -> nx.Graph:
     )
     nx.set_node_attributes(graph, node_positions, name="pos")
     nx.set_node_attributes(graph, node_positions, name="feature")
-    return graph
+    return graph, 2
 
 
-def random_graph(size: int) -> nx.Graph:
+def random_graph(size: int) -> Tuple[nx.Graph, int]:
     node_positions = {i: gen_disc_pos() for i in range(size)}
-    # generate edges (the alg used is not of interest)
+    # generate edges (the specific alg used is not of interest)
     graph = nx.powerlaw_cluster_graph(
         n=size,
         m=int(size / 2),
@@ -44,10 +72,17 @@ def random_graph(size: int) -> nx.Graph:
     # even if the graph is a powerlaw-cluster-graph, as long as the embedding is random, it shouldn't give a good score
     nx.set_node_attributes(graph, node_positions, name="pos")
     nx.set_node_attributes(graph, node_positions, name="feature")
-    return graph
+    return graph, 2
 
 
-def subgraph(graph: nx.Graph, size: int, alpha: float = 1.0, boredom_pth: float = 0.3, ignore=None) -> (nx.Graph, Set[NodeId]):
+def subgraph(
+        graph: nx.Graph,
+        size: int,
+        alpha: float = 1.0,
+        boredom_pth: float = 0.3,
+        ignore=None
+) -> Tuple[nx.Graph, Set[NodeId]]:
+    # init
     curr_node: Union[NodeId, None] = None
     sampled: Set[NodeId] = set()
     boredom: int = 0  # escape parameter in case it walks on a too small component, enforces jumps
