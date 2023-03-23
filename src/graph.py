@@ -127,10 +127,14 @@ def subgraph(
 
 
 node_shifts = {
-    "up": (1, 0),
+    "top": (1, 0),
     "down": (-1, 0),
     "left": (0, -1),
     "right": (0, 1),
+    "top-left": (1, -1),
+    "top-right": (1, 1),
+    "bottom-left": (-1, -1),
+    "bottom-right": (-1, 1),
 }
 
 
@@ -147,14 +151,16 @@ def periodic_of(graph: nx.Graph) -> nx.Graph:
         for (key, (xs, ys)) in node_shifts.items()
     ])
     # add edges between all original nodes and their shifts
+    # this has to be done for both directions
     graph.add_edges_from([
         (
-            u,
-            f"{v}_{key}",
+            u if lr else v,
+            f"{v if lr else u}_{key}",
             {**d, "shift": key}
         )
         for (u, v, d) in graph.edges(data=True)
         for (key, shift) in node_shifts.items()
+        for lr in [True, False]
     ])
     # remove all edges that are too long and unused nodes
     graph.remove_edges_from([

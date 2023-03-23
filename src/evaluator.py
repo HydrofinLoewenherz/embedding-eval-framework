@@ -28,7 +28,9 @@ class DatasetBuilder:
         self.node_feature_pairs: NodeDataPairs = set(itertools.combinations(self.graph.nodes.data("feature"), 2))
         values, labels = zip(*[
             (
+                # feature [add additional features here]
                 [*u_f, *v_f],
+                # label [binary classification - keep as is]
                 1 if graph.has_edge(u, v) else 0
             )
             for ((u, u_f), (v, v_f)) in self.node_feature_pairs
