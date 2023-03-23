@@ -1,14 +1,39 @@
 import math
+import numpy as np
 import random
 import networkx as nx
 from typing import Set, Tuple, Union, Dict
 from girg_sampling import girgs
+from copy import deepcopy
+
+from src.args import Args
 
 # Type alias to make the code more comprehensible
 NodeData = Dict
 NodeId = int
 NodeWithData = Tuple[NodeId, NodeData]
 NodeDataPairs = Set[Tuple[NodeWithData, NodeWithData]]
+
+
+def gen_graph(args: Args) -> Tuple[nx.Graph, int]:
+    if args.graph_type == "rgg":
+        graph, dim = random_geometric_graph(
+            size=args.graph_size,
+            radius=args.rg_radius
+        )
+    elif args.graph_type == "random":
+        graph, dim = random_geometric_graph(
+            size=args.graph_size,
+            radius=args.rg_radius
+        )
+        randomize_features(graph)
+    elif args.graph_type == "girg":
+        graph, dim = girg_graph(
+            size=args.graph_size
+        )
+    else:
+        raise ValueError(f"invalid graph type: {args.graph_type}")
+    return graph, dim
 
 
 def girg_graph(
@@ -60,19 +85,9 @@ def random_geometric_graph(size: int, radius: float) -> Tuple[nx.Graph, int]:
     return graph, 2
 
 
-def random_graph(size: int) -> Tuple[nx.Graph, int]:
-    node_positions = {i: gen_disc_pos() for i in range(size)}
-    # generate edges (the specific alg used is not of interest)
-    graph = nx.powerlaw_cluster_graph(
-        n=size,
-        m=int(size / 2),
-        p=0.5
-    )
-    # give nodes random positions and features
-    # even if the graph is a powerlaw-cluster-graph, as long as the embedding is random, it shouldn't give a good score
-    nx.set_node_attributes(graph, node_positions, name="pos")
+def randomize_features(graph: nx.Graph):
+    node_positions = {i: gen_disc_pos() for i in list(graph.nodes)}
     nx.set_node_attributes(graph, node_positions, name="feature")
-    return graph, 2
 
 
 def subgraph(
@@ -109,3 +124,51 @@ def subgraph(
         sampled.add(curr_node)
     # build subgraph
     return graph.subgraph(sampled), sampled
+
+
+node_shifts = {
+    "up": (1, 0),
+    "down": (-1, 0),
+    "left": (0, -1),
+    "right": (0, 1),
+}
+
+
+def periodic_of(graph: nx.Graph) -> nx.Graph:
+    graph = deepcopy(graph)
+    positions = graph.nodes.data("pos")
+    # add shifted copies for all nodes
+    graph.add_nodes_from([
+        (
+            f"{n}_{key}",
+            {**d, "pos": [d["pos"][0] + xs, d["pos"][1] + ys]}
+        )
+        for (n, d) in graph.nodes(data=True)
+        for (key, (xs, ys)) in node_shifts.items()
+    ])
+    # add edges between all original nodes and their shifts
+    graph.add_edges_from([
+        (
+            u,
+            f"{v}_{key}",
+            {**d, "shift": key}
+        )
+        for (u, v, d) in graph.edges(data=True)
+        for (key, shift) in node_shifts.items()
+    ])
+    # remove all edges that are too long and unused nodes
+    graph.remove_edges_from([
+        (u, v)
+        for (u, v, d) in graph.edges(data=True)
+        if np.abs(math.dist(positions[u], positions[v])) > 0.5
+    ])
+    graph.remove_nodes_from([
+        u
+        for (u, d) in graph.nodes(data=True)
+        if (d["pos"][0] > 1.0 or d["pos"][1] > 1.0 or d["pos"][0] < 0.0 or d["pos"][1] < 0.0) and graph.degree(u) == 0
+    ])
+    return graph
+
+
+def non_periodic_node(node: Union[int, str]) -> int:
+    return int(str(node).split("_", 1)[0])
