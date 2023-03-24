@@ -230,17 +230,20 @@ class Evaluator:
                 pbar.set_description(f"epoch {epoch + 1}")
 
                 # generate graph and dataset for epoch (and track some metrics)
-                epoch_graph, _ = subgraph(
-                    size=self.args.epoch_graph_size,
-                    graph=self.train_graph,
-                    alpha=self.args.epoch_graph_alpha,
-                    boredom_pth=self.args.epoch_graph_boredom_pth
-                )
-                epoch_dataset = DatasetBuilder(
-                    graph=epoch_graph,
-                    batch_size=self.args.batch_size,
-                    device=self.device
-                )
+                #epoch_graph, _ = subgraph(
+                #    size=self.args.epoch_graph_size,
+                #    graph=self.train_graph,
+                #    alpha=self.args.epoch_graph_alpha,
+                #    boredom_pth=self.args.epoch_graph_boredom_pth
+                #)
+                #epoch_dataset = DatasetBuilder(
+                #    graph=epoch_graph,
+                #    batch_size=self.args.batch_size,
+                #    device=self.device
+                #)
+                # TODO revert to using epoch subgraphs after test
+                epoch_graph = self.train_graph
+                epoch_dataset = self.train_dataset
                 self.writer.add_scalar('subgraph_edges', epoch_dataset.n_edges / epoch_dataset.size, epoch)
                 pbar.update(1)
 
@@ -274,6 +277,10 @@ class Evaluator:
                     patience_counter += 1
                     if patience_counter > patience and self.args.early_stopping:
                         break
+                # stop with good precision
+                # TODO remove after testing without epoch graphs?
+                if valid_ap > 0.99:
+                    break
 
                 # save subgraph periodically
                 if save_fig and epoch % 10 == 0:

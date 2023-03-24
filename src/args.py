@@ -30,16 +30,18 @@ class Args:  # TODO use typed dict?
     g_ple: float = field(default=2.5)
     g_alpha: float = field(default=math.inf)
     g_deg: float = field(default=10)
+    # note for cvs saving
+    note: str = field(default="-")
 
 
 def gridsearch_args() -> List[Args]:
     return [
         Args(
-            # graph_size=graph_size,
-            epoch_graph_size=epoch_graph_size,
-            epoch_graph_alpha=epoch_graph_alpha
+            graph_size=graph_size,
+            # epoch_graph_size=epoch_graph_size,
+            # epoch_graph_alpha=epoch_graph_alpha
         )
-        # for graph_size in [500, 1000, 2500]
-        for epoch_graph_size in [50, 250]
-        for epoch_graph_alpha in [0.0, 0.25, 0.5, 0.75, 1.0]
+        for graph_size in [500, 1000, 2500]
+        # for epoch_graph_size in [50, 250]
+        # for epoch_graph_alpha in [0.0, 0.25, 0.5, 0.75, 1.0]
     ]
