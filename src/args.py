@@ -25,7 +25,7 @@ class Args:  # TODO use typed dict?
     graph_size: int = field(default=1000)
     graph_type: str = field(default="rgg")
     # random geometric graph
-    rg_radius: float = field(default=0.05)
+    rg_avg_degree: int = field(default=10)
     # girg graph
     g_ple: float = field(default=2.5)
     g_alpha: float = field(default=math.inf)
@@ -41,6 +41,7 @@ def gridsearch_args() -> List[Args]:
             # epoch_graph_size=epoch_graph_size,
             # epoch_graph_alpha=epoch_graph_alpha
         )
+        # for graph_size in [5000]
         for graph_size in [500, 1000, 2500]
         # for epoch_graph_size in [50, 250]
         # for epoch_graph_alpha in [0.0, 0.25, 0.5, 0.75, 1.0]

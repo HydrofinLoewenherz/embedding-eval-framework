@@ -17,14 +17,16 @@ NodeDataPairs = Set[Tuple[NodeWithData, NodeWithData]]
 
 def gen_graph(args: Args) -> Tuple[nx.Graph, int]:
     if args.graph_type == "rgg":
+        radius = math.sqrt(args.rg_avg_degree / (args.graph_size * math.pi))
         graph, dim = random_geometric_graph(
             size=args.graph_size,
-            radius=args.rg_radius
+            radius=radius
         )
     elif args.graph_type == "random":
+        radius = math.sqrt(args.rg_avg_degree / (args.graph_size * math.pi))
         graph, dim = random_geometric_graph(
             size=args.graph_size,
-            radius=args.rg_radius
+            radius=radius
         )
         randomize_features(graph)
     elif args.graph_type == "girg":
