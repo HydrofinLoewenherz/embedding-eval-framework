@@ -38,11 +38,11 @@ def gridsearch_args() -> List[Args]:
     return [
         Args(
             graph_size=graph_size,
-            # epoch_graph_size=epoch_graph_size,
-            # epoch_graph_alpha=epoch_graph_alpha
+            epoch_graph_size=epoch_graph_size,
+            epoch_graph_alpha=epoch_graph_alpha
         )
         # for graph_size in [5000]
         for graph_size in [500, 1000, 2500]
-        # for epoch_graph_size in [50, 250]
-        # for epoch_graph_alpha in [0.0, 0.25, 0.5, 0.75, 1.0]
+        for epoch_graph_size in [50, 100, 250]
+        for epoch_graph_alpha in [0.0, 0.5, 1.0]
     ]
