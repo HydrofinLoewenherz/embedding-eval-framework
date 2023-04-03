@@ -1,3 +1,4 @@
+import itertools
 import math
 import numpy as np
 import random
@@ -15,10 +16,28 @@ NodeWithData = Tuple[NodeId, NodeData]
 NodeDataPairs = Set[Tuple[NodeWithData, NodeWithData]]
 
 
+node_shifts = {
+    "top": (1, 0),
+    "down": (-1, 0),
+    "left": (0, -1),
+    "right": (0, 1),
+    "top-left": (1, -1),
+    "top-right": (1, 1),
+    "bottom-left": (-1, -1),
+    "bottom-right": (-1, 1),
+}
+
+
 def gen_graph(args: Args) -> Tuple[nx.Graph, int]:
     if args.graph_type == "rgg":
         radius = math.sqrt(args.rg_avg_degree / (args.graph_size * math.pi))
         graph, dim = random_geometric_graph(
+            size=args.graph_size,
+            radius=radius
+        )
+    elif args.graph_type == "t_rgg":
+        radius = math.sqrt(args.rg_avg_degree / (args.graph_size * math.pi))
+        graph, dim = toroid_random_geometric_graph(
             size=args.graph_size,
             radius=radius
         )
@@ -65,18 +84,18 @@ def girg_graph(
     return graph, 3
 
 
-def gen_disc_pos() -> Tuple[float, float]:
+def gen_disc_pos(disc: bool = True) -> Tuple[float, float]:
     while True:
         p = (random.uniform(0, 1), random.uniform(0, 1))
         d = (p[0] - 0.5, p[1] - 0.5)
-        if math.sqrt(d[0] * d[0] + d[1] * d[1]) > 0.5:
+        if disc and math.sqrt(d[0] * d[0] + d[1] * d[1]) > 0.5:
             continue
         return p
 
 
-def random_geometric_graph(size: int, radius: float) -> Tuple[nx.Graph, int]:
+def random_geometric_graph(size: int, radius: float, disc: bool = True) -> Tuple[nx.Graph, int]:
     # generate graph from positions and radius
-    node_positions = {i: gen_disc_pos() for i in range(size)}
+    node_positions = {i: gen_disc_pos(disc=disc) for i in range(size)}
     graph = nx.random_geometric_graph(
         size,
         radius,
@@ -84,6 +103,18 @@ def random_geometric_graph(size: int, radius: float) -> Tuple[nx.Graph, int]:
     )
     nx.set_node_attributes(graph, node_positions, name="pos")
     nx.set_node_attributes(graph, node_positions, name="feature")
+    return graph, 2
+
+
+def toroid_random_geometric_graph(size: int, radius: float) -> Tuple[nx.Graph, int]:
+    graph, dim = random_geometric_graph(size, radius, disc=False)
+    # add additional edges
+    graph.add_edges_from([
+        (u, v, {"shift": key})
+        for ((u, p_u), (v, (p_v_x, p_v_y))) in itertools.combinations(graph.nodes(data="pos"), 2)
+        for (key, (s_x, s_y)) in node_shifts.items()
+        if np.abs(math.dist(p_u, (p_v_x + s_x, p_v_y + s_y))) <= radius
+    ])
     return graph, 2
 
 
@@ -126,18 +157,6 @@ def subgraph(
         sampled.add(curr_node)
     # build subgraph
     return graph.subgraph(sampled), sampled
-
-
-node_shifts = {
-    "top": (1, 0),
-    "down": (-1, 0),
-    "left": (0, -1),
-    "right": (0, 1),
-    "top-left": (1, -1),
-    "top-right": (1, 1),
-    "bottom-left": (-1, -1),
-    "bottom-right": (-1, 1),
-}
 
 
 def periodic_of(graph: nx.Graph) -> nx.Graph:
