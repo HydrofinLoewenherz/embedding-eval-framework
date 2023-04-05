@@ -3,7 +3,7 @@ import math
 import numpy as np
 import random
 import networkx as nx
-from typing import Set, Tuple, Union, Dict
+from typing import Set, Tuple, Union, Dict, List
 from girg_sampling import girgs
 from copy import deepcopy
 
@@ -157,6 +157,50 @@ def subgraph(
         sampled.add(curr_node)
     # build subgraph
     return graph.subgraph(sampled), sampled
+
+
+def bfs_subgraph(
+        graph: nx.Graph,
+        size: int
+) -> Tuple[nx.Graph, Set[NodeId]]:
+    visit: List[NodeId] = []
+    visited: Set[NodeId] = set()
+    while len(visited) < size:
+        if len(visit) == 0:
+            visit.append(random.choice(list(graph.nodes)))
+
+        curr_node = visit.pop(0)
+        neighbors = list(graph.neighbors(curr_node)) if curr_node is not None else []
+        visit.extend([
+            n
+            for n in neighbors
+            if n not in visited and n not in visit
+        ])
+        visited.add(curr_node)
+    # build subgraph
+    return graph.subgraph(visited), visited
+
+
+def dfs_subgraph(
+        graph: nx.Graph,
+        size: int
+) -> Tuple[nx.Graph, Set[NodeId]]:
+    visit: List[NodeId] = []
+    visited: Set[NodeId] = set()
+    while len(visited) < size:
+        if len(visit) == 0:
+            visit.append(random.choice(list(graph.nodes)))
+
+        curr_node = visit.pop(len(visit) - 1)
+        neighbors = list(graph.neighbors(curr_node)) if curr_node is not None else []
+        visit.extend([
+            n
+            for n in neighbors
+            if n not in visited and n not in visit
+        ])
+        visited.add(curr_node)
+    # build subgraph
+    return graph.subgraph(visited), visited
 
 
 def periodic_of(graph: nx.Graph) -> nx.Graph:
