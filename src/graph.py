@@ -14,6 +14,7 @@ NodeData = Dict
 NodeId = int
 NodeWithData = Tuple[NodeId, NodeData]
 NodeDataPairs = Set[Tuple[NodeWithData, NodeWithData]]
+NodePos = Tuple[float, float]
 
 
 node_shifts = {
@@ -28,33 +29,33 @@ node_shifts = {
 }
 
 
-def gen_graph(args: Args) -> Tuple[nx.Graph, int]:
+def gen_graph(args: Args) -> nx.Graph:
     if args.graph_type == "rgg":
         radius = math.sqrt(args.rg_avg_degree / (args.graph_size * math.pi))
-        graph, dim = random_geometric_graph(
+        graph = random_geometric_graph(
             size=args.graph_size,
             radius=radius
         )
     elif args.graph_type == "t_rgg":
         radius = math.sqrt(args.rg_avg_degree / (args.graph_size * math.pi))
-        graph, dim = toroid_random_geometric_graph(
+        graph = toroid_random_geometric_graph(
             size=args.graph_size,
             radius=radius
         )
     elif args.graph_type == "random":
         radius = math.sqrt(args.rg_avg_degree / (args.graph_size * math.pi))
-        graph, dim = random_geometric_graph(
+        graph = random_geometric_graph(
             size=args.graph_size,
             radius=radius
         )
         randomize_features(graph)
     elif args.graph_type == "girg":
-        graph, dim = girg_graph(
+        graph = girg_graph(
             size=args.graph_size
         )
     else:
         raise ValueError(f"invalid graph type: {args.graph_type}")
-    return graph, dim
+    return graph
 
 
 def girg_graph(
@@ -62,7 +63,7 @@ def girg_graph(
         ple: float = 2.5,
         alpha: float = math.inf,
         deg: float = 10,
-) -> Tuple[nx.Graph, int]:
+) -> nx.Graph:
     # generate girg
     weights = girgs.generateWeights(size, ple)
     positions = girgs.generatePositions(size, 2)
@@ -81,21 +82,35 @@ def girg_graph(
     nx.set_node_attributes(graph, node_positions, name="pos")
     nx.set_node_attributes(graph, node_features, name="feature")
     graph.add_edges_from(edges)
-    return graph, 3
+    return graph
 
 
-def gen_disc_pos(disc: bool = True) -> Tuple[float, float]:
+def gen_pos(disc: bool = True) -> NodePos:
     while True:
         p = (random.uniform(0, 1), random.uniform(0, 1))
+        # if disc mode continue until pos in disc is generated
         d = (p[0] - 0.5, p[1] - 0.5)
         if disc and math.sqrt(d[0] * d[0] + d[1] * d[1]) > 0.5:
             continue
         return p
 
 
-def random_geometric_graph(size: int, radius: float, disc: bool = True) -> Tuple[nx.Graph, int]:
+def gen_edge(d: float, disc: bool = True) -> Tuple[NodePos, NodePos]:
+    while True:
+        u, v = gen_pos(disc=disc), gen_pos(disc=disc)
+        uv = tuple(np.subtract(v, u))
+        w = np.add(u, (uv / np.linalg.norm(uv)) * d)
+        # continue until 'w' is inside the area
+        if 0 > w[0] > 1 or 0 > w[1] > 1:
+            continue
+        if disc and np.linalg.norm(w) > 1:
+            continue
+        return u, w
+
+
+def random_geometric_graph(size: int, radius: float, disc: bool = True) -> nx.Graph:
     # generate graph from positions and radius
-    node_positions = {i: gen_disc_pos(disc=disc) for i in range(size)}
+    node_positions = {i: gen_pos(disc=disc) for i in range(size)}
     graph = nx.random_geometric_graph(
         size,
         radius,
@@ -103,10 +118,10 @@ def random_geometric_graph(size: int, radius: float, disc: bool = True) -> Tuple
     )
     nx.set_node_attributes(graph, node_positions, name="pos")
     nx.set_node_attributes(graph, node_positions, name="feature")
-    return graph, 2
+    return graph
 
 
-def toroid_random_geometric_graph(size: int, radius: float) -> Tuple[nx.Graph, int]:
+def toroid_random_geometric_graph(size: int, radius: float) -> nx.Graph:
     graph, dim = random_geometric_graph(size, radius, disc=False)
     # add additional edges
     graph.add_edges_from([
@@ -115,11 +130,11 @@ def toroid_random_geometric_graph(size: int, radius: float) -> Tuple[nx.Graph, i
         for (key, (s_x, s_y)) in node_shifts.items()
         if np.abs(math.dist(p_u, (p_v_x + s_x, p_v_y + s_y))) <= radius
     ])
-    return graph, 2
+    return graph
 
 
 def randomize_features(graph: nx.Graph):
-    node_positions = {i: gen_disc_pos() for i in list(graph.nodes)}
+    node_positions = {i: gen_pos() for i in list(graph.nodes)}
     nx.set_node_attributes(graph, node_positions, name="feature")
 
 

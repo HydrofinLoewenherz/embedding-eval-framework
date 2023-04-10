@@ -4,14 +4,16 @@ from typing import List
 
 
 @dataclass(
-    repr=True
+    repr=True,
+    unsafe_hash=True
 )
 class Args:  # TODO use typed dict?
     # torch
-    batch_size: int = field(default=10)
+    batch_size: int = field(default=128)
     epochs: int = field(default=250)
     layers: int = field(default=10)
-    layer_size: int = field(default=16)
+    layer_size: int = field(default=32)  # TODO relative to input size?
+    sort_dataset: bool = field(default=True)
     test_split: float = field(default=0.2)
     valid_split: float = field(default=0.2)
     eval_epochs: bool = field(default=True)

@@ -1,4 +1,5 @@
 import itertools
+import math
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -14,11 +15,12 @@ from torchmetrics.classification import BinaryAveragePrecision, BinaryConfusionM
 from typing import List, Union, Tuple, Any
 
 from src.args import Args
-from src.graph import NodeDataPairs, random_geometric_graph, subgraph
+from src.graph import subgraph
+from src.pytorchtools import EarlyStopping
 
 # special settings for tests
 epoch_subsampling = True
-valid_threshold_stop = False
+valid_threshold_stop = True
 
 
 class DatasetBuilder:
@@ -29,16 +31,28 @@ class DatasetBuilder:
         self.n_nodes = len(self.graph.nodes(data=False))
         self.n_edges = len(self.graph.edges(data=False))
 
-        self.node_feature_pairs: NodeDataPairs = set(itertools.combinations(self.graph.nodes.data("feature"), 2))
+        # halve the amount of feature pairs
+        self.node_feature_pairs = itertools.combinations(
+            list(self.graph.nodes(data="feature")),
+            2
+        )
         values, labels = zip(*[
             (
                 # feature [add additional features here]
-                [*u_f, *v_f],
+                [
+                    # node features
+                    *u_f, *v_f,
+                    # precalculated (helpful) additional features (examples)
+                    math.dist(u_f, v_f),
+                    # np.linalg.norm(u_f),
+                    # np.linalg.norm(v_f)
+                ],
                 # label [binary classification - keep as is]
                 1 if graph.has_edge(u, v) else 0
             )
             for ((u, u_f), (v, v_f)) in self.node_feature_pairs
         ])
+        self.dim = len(values[0])
         self.size = len(values)
         self.n_non_edges = self.size - self.n_edges
         self.ds_values = torch.FloatTensor(values).to(device)
@@ -54,6 +68,10 @@ class NeuralNetwork(nn.Module):
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(input_size, layer_size),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(layer_size, layer_size),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
             nn.Linear(layer_size, layer_size),
             nn.ReLU(),
             nn.Linear(layer_size, 1)
@@ -122,25 +140,35 @@ def result_figure(
 
 
 class Evaluator:
-    def __init__(self, graph: nx.Graph, dim: int, args: Args, writer_log_dir: str, device):
+    def __init__(self, graph: nx.Graph, args: Args, writer_log_dir: str, device):
         with tqdm(total=10, desc="building evaluator") as pbar:
             self.loss_fn = nn.BCEWithLogitsLoss()
             self.device = device
             self.args = args
-            self.dim = dim
             self.writer = SummaryWriter(writer_log_dir)
-            self.net = NeuralNetwork(
-                input_size=dim*2,
-                layer_size=args.layer_size
-            ).to(device)
+
+            # copy graph with sorted nodes (by feature vector)
+            self.graph = nx.Graph()
+            self.graph.add_nodes_from(
+                sorted(list(graph.nodes(data=True)), key=lambda x: x[1]["feature"])
+                if args.sort_dataset else
+                list(graph.nodes(data=True))
+            )
+            self.graph.add_edges_from(graph.edges(data=True))
             pbar.update(1)
-            self.graph = graph
-            pbar.update(1)
+
             self.whole_dataset = DatasetBuilder(
                 graph=self.graph,
                 batch_size=self.args.batch_size,
-                device=self.device
+                device=self.device,
             )
+            pbar.update(1)
+
+            self.dim = self.whole_dataset.dim
+            self.net = NeuralNetwork(
+                input_size=self.dim,
+                layer_size=args.layer_size
+            ).to(device)
             pbar.update(1)
 
             # split graph into train and test
@@ -172,20 +200,20 @@ class Evaluator:
             self.test_dataset = DatasetBuilder(
                 graph=self.test_graph,
                 batch_size=self.args.batch_size,
-                device=self.device
+                device=self.device,
             )
             pbar.update(1)
 
             self.valid_dataset = DatasetBuilder(
                 graph=self.valid_graph,
                 batch_size=self.args.batch_size,
-                device=self.device
+                device=self.device,
             )
             pbar.update(1)
             self.train_dataset = DatasetBuilder(
                 graph=self.train_graph,
                 batch_size=self.args.batch_size,
-                device=self.device
+                device=self.device,
             )
             pbar.update(1)
 
@@ -194,11 +222,11 @@ class Evaluator:
             self.bcm_fn = BinaryConfusionMatrix().to(self.device)
             pbar.update(1)
 
-    def __fit(self, dataset: DatasetBuilder, optimizer) -> Tuple[float, FloatTensor]:
+    def fit(self, dataloader: DataLoader, optimizer) -> Tuple[float, FloatTensor]:
         self.net.train()
         losses = []
         preds = []
-        for i_batch, (x_train, y_train) in enumerate(dataset.dataloader):
+        for i_batch, (x_train, y_train) in enumerate(dataloader):
             optimizer.zero_grad()
             y_pred = self.net(x_train)  # if the loss_fn is with logits, don't use sigmoid
             loss = self.loss_fn(y_pred, y_train.unsqueeze(1).float())
@@ -209,11 +237,11 @@ class Evaluator:
         preds = torch.sigmoid(torch.FloatTensor(preds).to(self.device))
         return float(np.mean(losses)), preds
 
-    def __score(self, dataset: DatasetBuilder) -> Tuple[float, FloatTensor]:
+    def score(self, dataloader: DataLoader) -> Tuple[float, FloatTensor]:
         self.net.eval()
         losses = []
         preds = []
-        for i_batch, (x_train, y_train) in enumerate(dataset.dataloader):
+        for i_batch, (x_train, y_train) in enumerate(dataloader):
             y_pred = self.net(x_train)  # if the loss_fn is with logits, don't use sigmoid
             loss = self.loss_fn(y_pred, y_train.unsqueeze(1).float())
             losses.append(loss.item())
@@ -223,11 +251,7 @@ class Evaluator:
 
     def train(self, optimizer, save_fig: bool = True):
         self.writer.add_text("args", self.args.__repr__())
-
-        # early stopping
-        best_score = 0
-        patience_counter = 0
-        patience = 20
+        early_stopper = EarlyStopping(patience=20)
 
         with tqdm(desc="training model...") as pbar:
             for epoch in range(self.args.epochs):
@@ -244,7 +268,7 @@ class Evaluator:
                     epoch_dataset = DatasetBuilder(
                         graph=epoch_graph,
                         batch_size=self.args.batch_size,
-                        device=self.device
+                        device=self.device,
                     )
                 else:
                     epoch_graph = self.train_graph
@@ -253,12 +277,12 @@ class Evaluator:
                 pbar.update(1)
 
                 # train epoch
-                fit_loss, _ = self.__fit(epoch_dataset, optimizer)
+                fit_loss, _ = self.fit(epoch_dataset.dataloader, optimizer)
                 self.writer.add_scalar('fit_loss', fit_loss, epoch)
                 pbar.update(1)
 
                 # evaluate on epoch dataset
-                train_loss, train_preds = self.__score(epoch_dataset)
+                train_loss, train_preds = self.score(epoch_dataset.dataloader)
                 ap_score = self.ap_score_fn(train_preds, epoch_dataset.ds_labels)
                 f1_score = self.f1_score_fn(train_preds, epoch_dataset.ds_labels)
                 self.writer.add_scalar('train_loss', train_loss, epoch)
@@ -268,20 +292,16 @@ class Evaluator:
                 pbar.update(1)
 
                 # evaluate on valid dataset for early stopping
-                valid_loss, valid_preds = self.__score(self.valid_dataset)
+                valid_loss, valid_preds = self.score(self.valid_dataset.dataloader)
                 valid_ap = self.ap_score_fn(valid_preds, self.valid_dataset.ds_labels)
                 self.writer.add_scalar('valid_loss', valid_loss, epoch)
                 self.writer.add_scalar('valid_precision', valid_ap, epoch)
                 pbar.update(1)
 
                 # stop early if no improvement for last epochs
-                if valid_ap > best_score:
-                    best_score = valid_ap
-                    patience_counter = 0
-                else:
-                    patience_counter += 1
-                    if patience_counter > patience and self.args.early_stopping:
-                        break
+                early_stopper(valid_loss, self.net)
+                if early_stopper.early_stop:
+                    break
                 # stop with good precision [if enabled]
                 if valid_threshold_stop and valid_ap > 0.99:
                     break
@@ -301,13 +321,15 @@ class Evaluator:
                     )
                     self.writer.add_figure('epoch_graph', f, epoch)
                 pbar.update(1)
+            # load best model
+            self.net.load_state_dict(torch.load('checkpoint.pt'))
 
     def test(self, epoch: Union[int, None] = None, save_fig: bool = True) -> Tuple[Any, Any, Any]:
         with tqdm(total=5, desc="testing model") as pbar:
             self.net.eval()
 
             # evaluate test dataset (in batches)
-            test_loss, test_preds = self.__score(self.test_dataset)
+            test_loss, test_preds = self.score(self.test_dataset.dataloader)
             pbar.update(1)
 
             # ap score
@@ -356,7 +378,7 @@ class Evaluator:
             self.net.eval()
 
             # evaluate whole dataset (in batches)
-            eval_loss, eval_preds = self.__score(self.whole_dataset)
+            eval_loss, eval_preds = self.score(self.whole_dataset.dataloader)
             self.writer.add_scalar('eval_loss', eval_loss, epoch)
             pbar.update(1)
 
