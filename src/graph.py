@@ -18,6 +18,7 @@ NodePos = Tuple[float, float]
 
 
 node_shifts = {
+    "none": (0, 0),
     "top": (1, 0),
     "down": (-1, 0),
     "left": (0, -1),
@@ -27,6 +28,11 @@ node_shifts = {
     "bottom-left": (-1, -1),
     "bottom-right": (-1, 1),
 }
+
+
+def back_shift(key: str) -> str:
+    (sx, sy) = node_shifts[key]
+    return list(node_shifts.keys())[list(node_shifts.values()).index((-sx, -sy))]
 
 
 def gen_graph(args: Args) -> nx.Graph:
@@ -122,13 +128,13 @@ def random_geometric_graph(size: int, radius: float, disc: bool = True) -> nx.Gr
 
 
 def toroid_random_geometric_graph(size: int, radius: float) -> nx.Graph:
-    graph, dim = random_geometric_graph(size, radius, disc=False)
+    graph = random_geometric_graph(size, radius, disc=False)
     # add additional edges
     graph.add_edges_from([
         (u, v, {"shift": key})
         for ((u, p_u), (v, (p_v_x, p_v_y))) in itertools.combinations(graph.nodes(data="pos"), 2)
         for (key, (s_x, s_y)) in node_shifts.items()
-        if np.abs(math.dist(p_u, (p_v_x + s_x, p_v_y + s_y))) <= radius
+        if key != 'none' and np.abs(math.dist(p_u, (p_v_x + s_x, p_v_y + s_y))) <= radius
     ])
     return graph
 
@@ -136,6 +142,15 @@ def toroid_random_geometric_graph(size: int, radius: float) -> nx.Graph:
 def randomize_features(graph: nx.Graph):
     node_positions = {i: gen_pos() for i in list(graph.nodes)}
     nx.set_node_attributes(graph, node_positions, name="feature")
+
+
+def sorted_nodes(graph: nx.Graph) -> nx.Graph:
+    out = nx.Graph()
+    out.add_nodes_from(
+        sorted(list(graph.nodes(data=True)), key=lambda x: x[1]["feature"])
+    )
+    out.add_edges_from(graph.edges(data=True))
+    return out
 
 
 def subgraph(
@@ -218,43 +233,64 @@ def dfs_subgraph(
     return graph.subgraph(visited), visited
 
 
-def periodic_of(graph: nx.Graph) -> nx.Graph:
+def on_toriod(graph: nx.Graph) -> nx.Graph:
+    # create a copy of the graph to ensure that the original graph is not altered for the representation
     graph = deepcopy(graph)
-    positions = graph.nodes.data("pos")
+    t_graph = nx.Graph()
+
     # add shifted copies for all nodes
-    graph.add_nodes_from([
+    # the original node key is also replaced with the shift suffix 'none'
+    t_graph.add_nodes_from([
         (
-            f"{n}_{key}",
-            {**d, "pos": [d["pos"][0] + xs, d["pos"][1] + ys]}
+            f"{u}_{key}",
+            {
+                **d,
+                "pos": [d["pos"][0] + xs, d["pos"][1] + ys],
+                "shift": key,
+                "original": u
+            }
         )
-        for (n, d) in graph.nodes(data=True)
+        for (u, d) in graph.nodes(data=True)
         for (key, (xs, ys)) in node_shifts.items()
     ])
-    # add edges between all original nodes and their shifts
-    # this has to be done for both directions
-    graph.add_edges_from([
-        (
-            u if lr else v,
-            f"{v if lr else u}_{key}",
-            {**d, "shift": key}
-        )
+
+    # add one edge for each original edge
+    # for each possible shift, use the edge that is the shortest
+    positions = t_graph.nodes.data("pos")
+    shortest_edges = [
+        sorted([
+            (u, v, {
+                **d,
+                "shift": key,
+                "dist": math.dist(
+                    positions[f"{u}_none"],
+                    (positions[f"{v}_none"][0] + sx, positions[f"{v}_none"][1] + sy)
+                )
+            })
+            for [key, (sx, sy)] in node_shifts.items()
+        ], key=lambda x: x[2]["dist"])[0]
         for (u, v, d) in graph.edges(data=True)
-        for (key, shift) in node_shifts.items()
+    ]
+
+    # for each shifted edge, add two halve edges u -> v' and u' -> v
+    # un-shifted edges are added twice, but that should not matter
+    t_graph.add_edges_from([
+        (
+            f"{u}_none",
+            f"{v}_{d['shift']}",
+            d
+        )
+        if lr else
+        (
+            f"{v}_none",
+            f"{u}_{back_shift(d['shift'])}",
+            d
+        )
+        for (u, v, d) in shortest_edges
         for lr in [True, False]
     ])
-    # remove all edges that are too long and unused nodes
-    graph.remove_edges_from([
-        (u, v)
-        for (u, v, d) in graph.edges(data=True)
-        if np.abs(math.dist(positions[u], positions[v])) > 0.5
-    ])
-    graph.remove_nodes_from([
-        u
-        for (u, d) in graph.nodes(data=True)
-        if (d["pos"][0] > 1.0 or d["pos"][1] > 1.0 or d["pos"][0] < 0.0 or d["pos"][1] < 0.0) and graph.degree(u) == 0
-    ])
-    return graph
+    return t_graph
 
 
-def non_periodic_node(node: Union[int, str]) -> int:
-    return int(str(node).split("_", 1)[0])
+def toroid_edge_shift(node: str) -> str:
+    return node.split("_", 1)[0]
