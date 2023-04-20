@@ -51,6 +51,8 @@ def sub_of(
             beta=beta,
             dc=dc
         )
+    if alg == "none":
+        return graph
     # if type does not match any known subgraph algorithm, raise error
     raise ValueError(f"unknown subgraph alg: {alg}")
 
@@ -60,6 +62,8 @@ def wrs_of(
         size: int,
         dc: bool = False
 ) -> nx.Graph:
+    if nx.number_of_nodes(graph) < size:
+        raise ValueError(f"cannot create subgraph of size {size} for graph of size {nx.number_of_nodes(graph)}")
     if dc:
         graph = deepcopy(graph)
     nodes = random.sample(
@@ -74,13 +78,14 @@ def bfs_of(
         size: int,
         dc: bool = False
 ) -> nx.Graph:
+    if nx.number_of_nodes(graph) < size:
+        raise ValueError(f"cannot create subgraph of size {size} for graph of size {nx.number_of_nodes(graph)}")
     if dc:
         graph = deepcopy(graph)
     start = random.choice(list(graph.nodes))
     tree = nx.bfs_tree(graph, start, depth_limit=size)
     # the nodes were added in order of traversal
     nodes = list(tree.nodes())[:size]
-    print(start, nodes)
     if len(nodes) != size:
         print(f"dfs only reached sample size {len(nodes)}/{size}")
     return nx.subgraph(graph, nodes)
@@ -91,13 +96,14 @@ def dfs_of(
         size: int,
         dc: bool = False
 ) -> nx.Graph:
+    if nx.number_of_nodes(graph) < size:
+        raise ValueError(f"cannot create subgraph of size {size} for graph of size {nx.number_of_nodes(graph)}")
     if dc:
         graph = deepcopy(graph)
     start = random.choice(list(graph.nodes))
     tree = nx.dfs_tree(graph, start, depth_limit=size)
     # the nodes were added in order of traversal
     nodes = list(tree.nodes())[:size]
-    print(start, nodes)
     if len(nodes) != size:
         print(f"dfs only reached sample size {len(nodes)}/{size}")
     return nx.subgraph(graph, nodes)
@@ -109,6 +115,8 @@ def rw_of(
         alpha: float = 0.15,
         dc: bool = False
 ) -> nx.Graph:
+    if nx.number_of_nodes(graph) < size:
+        raise ValueError(f"cannot create subgraph of size {size} for graph of size {nx.number_of_nodes(graph)}")
     if dc:
         graph = deepcopy(graph)
     start = random.choice(list(graph.nodes))
@@ -140,6 +148,8 @@ def rj_of(
         alpha: float = 0.15,
         dc: bool = False
 ) -> nx.Graph:
+    if nx.number_of_nodes(graph) < size:
+        raise ValueError(f"cannot create subgraph of size {size} for graph of size {nx.number_of_nodes(graph)}")
     if dc:
         graph = deepcopy(graph)
     start = random.choice(list(graph.nodes))
@@ -163,6 +173,8 @@ def rjs_of(
         beta: float = 0.85,
         dc: bool = False
 ) -> nx.Graph:
+    if nx.number_of_nodes(graph) < size:
+        raise ValueError(f"cannot create subgraph of size {size} for graph of size {nx.number_of_nodes(graph)}")
     if dc:
         graph = deepcopy(graph)
     start = random.choice(list(graph.nodes))

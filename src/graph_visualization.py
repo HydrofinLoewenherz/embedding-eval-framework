@@ -14,8 +14,8 @@ from src.toroid import on_toroid, unshifted
 # seaborn settings
 sns.set_context("paper")
 sns.set_style("darkgrid", {"grid.color": ".8"})
-palette = "Spectral"
-cmap = sns.color_palette(palette, as_cmap=True)
+cmap = sns.color_palette("Spectral", as_cmap=True)
+pred_cmap = sns.color_palette("flare", as_cmap=True)
 
 
 def draw_graph(
@@ -56,6 +56,7 @@ def draw_prediction(
         graph: nx.Graph,
         prediction: Dict[Tuple[int, int], float],
         threshold: float = 0.0,
+        remap: bool = True,
         toroid: bool = False
 ):
     # remove all edges that have a prediction below the threshold
@@ -77,7 +78,12 @@ def draw_prediction(
         for _ in graph.nodes
     ]
     edge_color = [
-        cmap(prediction[(unshifted(u), unshifted(v))])
+        pred_cmap(
+            # remap prediction into reduced colormap (map 'threshold' as 0)
+            (prediction[(unshifted(u), unshifted(v))] - threshold) / (1 - threshold)
+            if remap else
+            prediction[(unshifted(u), unshifted(v))]
+        )
         for (u, v) in graph.edges
     ]
     # draw graph
@@ -96,13 +102,17 @@ def draw_cbar(
         fig: plt.Figure,
         ax: plt.Axes,
         label: str = "",
-        threshold: float = 0.0
+        threshold: float = 0.0,
+        remap: bool = True
 ):
     # remove all color below threshold and rescale color bar
-    th_colors = cmap(np.linspace(threshold, 1, 256))
-    th_cmap = ListedColormap(th_colors)
-    mapper = mpl.cm.ScalarMappable(cmap=th_cmap)
+    if remap:
+        mapper = mpl.cm.ScalarMappable(cmap=pred_cmap)
+    else:
+        th_colors = pred_cmap(np.linspace(threshold, 1, 256))
+        th_cmap = ListedColormap(th_colors)
+        mapper = mpl.cm.ScalarMappable(cmap=th_cmap)
     mapper.set_clim(threshold, 1.0)
 
-    cax = ax.inset_axes([1.04, 0.0, 0.05, 1.0])
+    cax = ax.inset_axes([1.01, 0.0, 0.05, 1.0])
     fig.colorbar(mapper, cax=cax, label=label)

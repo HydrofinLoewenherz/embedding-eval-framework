@@ -36,17 +36,17 @@ def gen_graph(args: Args) -> nx.Graph:
     if args.graph_type == "rgg":
         graph = gen_rgg(
             size=args.graph_size,
-            avg_degree=args.rg_avg_degree
+            avg_degree=args.rgg_avg_degree
         )
     elif args.graph_type == "t_rgg":
         graph = gen_t_rgg(
             size=args.graph_size,
-            avg_degree=args.rg_avg_degree
+            avg_degree=args.rgg_avg_degree
         )
     elif args.graph_type == "random":
         graph = gen_rgg(
             size=args.graph_size,
-            avg_degree=args.rg_avg_degree
+            avg_degree=args.rgg_avg_degree
         )
         graph = randomized_graph(graph)
     elif args.graph_type == "girg":
