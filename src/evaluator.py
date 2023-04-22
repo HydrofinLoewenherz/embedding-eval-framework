@@ -166,7 +166,7 @@ class Evaluator:
         return float(np.mean(losses)), preds
 
     def train(self, optimizer, pbar: bool = True):
-        early_stopper = EarlyStopping(patience=20)
+        early_stopper = EarlyStopping(patience=20, path="./out/model.pt")
 
         for epoch in (tqdm(range(self.args.epochs)) if pbar else range(self.args.epochs)):
             # generate graph and dataset for epoch
