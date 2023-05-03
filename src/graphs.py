@@ -73,8 +73,10 @@ def gen_girg(
 
     # convert to NetworkX graph (use pos and weight as feature)
     node_positions = {i: pos for i, pos in enumerate(positions)}
+    weights_mean = np.mean(scaled_weights)
+    norm_weights = [w / weights_mean for w in scaled_weights]  # "normalize" weights so that np.std does not overflow
     node_features = {
-        i: (*positions[i], scaled_weights[i])
+        i: (*positions[i], norm_weights[i])
         for i in range(size)
     }
     graph = nx.Graph()

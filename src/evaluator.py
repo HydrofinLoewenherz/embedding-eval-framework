@@ -1,5 +1,4 @@
 import itertools
-import math
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -28,10 +27,20 @@ class DatasetBuilder:
         self.n_nodes = len(self.graph.nodes(data=False))
         self.n_edges = len(self.graph.edges(data=False))
 
-        self.node_feature_pairs = itertools.combinations(
-            list(self.graph.nodes(data="feature")),
-            2
-        )
+        # normalize features (column-wise)
+        node_features = list(self.graph.nodes(data="feature"))
+        features = [f for _, f in node_features]
+        means, stds = np.mean(features, axis=0, dtype=np.float64), np.std(features, axis=0, dtype=np.float64)
+        self.norm_node_features = [
+            (u, [
+                (x - mean) / std
+                for x, mean, std in zip(f, means, stds)
+            ])
+            for u, f in node_features
+        ]
+
+        # build dataset
+        self.node_feature_pairs = itertools.combinations(self.norm_node_features, 2)
         values, labels = zip(*[
             (
                 # feature [add additional features here]
@@ -212,7 +221,7 @@ class Evaluator:
                 break
 
         # load best model
-        self.net.load_state_dict(torch.load('checkpoint.pt'))
+        self.net.load_state_dict(torch.load('./out/model.pt'))
 
     def test(self, epoch: Union[int, None] = None) -> Tuple[float, float, float]:
         # evaluate on test set
