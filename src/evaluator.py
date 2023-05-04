@@ -43,14 +43,9 @@ class DatasetBuilder:
         self.node_feature_pairs = itertools.combinations(self.norm_node_features, 2)
         values, labels = zip(*[
             (
-                # feature [add additional features here]
-                [
-                    # node features
-                    *u_f, *v_f,
-                    # precalculated (helpful) additional features (examples)
-                    math.dist(u_f, v_f),
-                ],
-                # label [binary classification - keep as is]
+                # feature vector
+                [*u_f, *v_f],
+                # label
                 1 if graph.has_edge(u, v) else 0
             )
             for ((u, u_f), (v, v_f)) in self.node_feature_pairs
