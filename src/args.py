@@ -12,6 +12,7 @@ class Args:
     epochs: int = field(default=250)
     batch_size: int = field(default=64)
     sort_dataset: bool = field(default=False)
+    std_dataset: bool = field(default=True)
     dataset_split: Tuple[float, float, float] = field(default=(60, 20, 20))
     early_stopping: bool = field(default=True)
     threshold_stopping: bool = field(default=True)

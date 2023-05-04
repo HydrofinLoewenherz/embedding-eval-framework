@@ -27,23 +27,11 @@ class DatasetBuilder:
         self.n_nodes = len(self.graph.nodes(data=False))
         self.n_edges = len(self.graph.edges(data=False))
 
-        # normalize features (column-wise)
-        node_features = list(self.graph.nodes(data="feature"))
-        features = [f for _, f in node_features]
-        means, stds = np.mean(features, axis=0, dtype=np.float64), np.std(features, axis=0, dtype=np.float64)
-        self.norm_node_features = [
-            (u, [
-                (x - mean) / std
-                for x, mean, std in zip(f, means, stds)
-            ])
-            for u, f in node_features
-        ]
-
         # build dataset
-        self.node_feature_pairs = itertools.combinations(self.norm_node_features, 2)
+        self.node_feature_pairs = itertools.combinations(list(self.graph.nodes(data="feature")), 2)
         values, labels = zip(*[
             (
-                # feature vector
+                # combined feature vector
                 [*u_f, *v_f],
                 # label
                 1 if graph.has_edge(u, v) else 0
@@ -90,8 +78,14 @@ class Evaluator:
         self.f1_score_fn = BinaryF1Score().to(self.device)
         self.bcm_fn = BinaryConfusionMatrix().to(self.device)
 
+        # apply optional transformations on the graph
+        self.graph = graph
+        if args.std_dataset:
+            self.graph = graphs.standardize_graph(self.graph)
+        if args.sort_dataset:
+            self.graph = graphs.sorted_graph(self.graph)
+
         # build dataset for whole graph
-        self.graph = graphs.sorted_graph(graph) if args.sort_dataset else graph
         self.whole_dataset = DatasetBuilder(
             graph=self.graph,
             batch_size=self.args.batch_size,

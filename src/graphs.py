@@ -63,6 +63,7 @@ def gen_girg(
         ple: float = 2.5,
         alpha: float = math.inf,
         deg: float = 10,
+        normalize_weights: bool = True
 ) -> nx.Graph:
     # generate girg
     weights = girgs.generateWeights(size, ple)
@@ -73,7 +74,7 @@ def gen_girg(
 
     # convert to NetworkX graph (use pos and weight as feature)
     node_positions = {i: pos for i, pos in enumerate(positions)}
-    weights_mean = np.mean(scaled_weights)
+    weights_mean = np.mean(scaled_weights) if normalize_weights else 1.0
     norm_weights = [w / weights_mean for w in scaled_weights]  # "normalize" weights so that np.std does not overflow
     node_features = {
         i: (*positions[i], norm_weights[i])
@@ -135,3 +136,20 @@ def sorted_graph(graph: nx.Graph) -> nx.Graph:
     ))
     out.add_edges_from(graph.edges(data=True))
     return out
+
+
+def standardize_graph(graph: nx.Graph) -> nx.Graph:
+    graph = deepcopy(graph)
+    # overwrite features with standardized features
+    node_features = list(graph.nodes(data="feature"))
+    features = [f for _, f in node_features]
+    means, stds = np.mean(features, axis=0, dtype=np.float64), np.std(features, axis=0, dtype=np.float64)
+    std_node_features = {
+        u: [
+            (x - mean) / std
+            for x, mean, std in zip(f, means, stds)
+        ]
+        for u, f in node_features
+    }
+    nx.set_node_attributes(graph, std_node_features, "feature")
+    return graph
