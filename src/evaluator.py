@@ -1,6 +1,8 @@
 import itertools
+import time
 
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from tqdm.notebook import tqdm
 import networkx as nx
@@ -163,8 +165,10 @@ class Evaluator:
         preds = torch.sigmoid(torch.FloatTensor(preds).to(self.device))
         return float(np.mean(losses)), preds
 
-    def train(self, optimizer, pbar: bool = True):
+    def train(self, optimizer, pbar: bool = True, track: bool = False) -> pd.DataFrame:
         early_stopper = EarlyStopping(patience=20, path="./out/model.pt")
+        track_record = pd.DataFrame({})
+        start_time = time.perf_counter()
 
         for epoch in (tqdm(range(self.args.epochs)) if pbar else range(self.args.epochs)):
             # generate graph and dataset for epoch
@@ -201,6 +205,27 @@ class Evaluator:
             self.writer.add_scalar('valid_loss', valid_loss, epoch)
             self.writer.add_scalar('valid_precision', valid_ap, epoch)
 
+            # update track record
+            if track:
+                track_record = pd.concat([
+                    track_record,
+                    pd.Series({
+                        "epoch": epoch,
+                        "runtime": time.perf_counter() - start_time,
+                        # subgraph
+                        "subgraph_edges": subgraph_edges,
+                        # fit
+                        "fit_loss": fit_loss,
+                        # train
+                        "train_loss": train_loss,
+                        "train_precision": ap_score.item(),
+                        "train_f1": f1_score.item(),
+                        # valid
+                        "valid_loss": valid_loss,
+                        "valid_precision": valid_ap.item(),
+                    }).to_frame().T
+                ], ignore_index=True)
+
             # stop early if no improvement for last epochs
             early_stopper(valid_loss, self.net)
             if self.args.early_stopping and early_stopper.early_stop:
@@ -211,6 +236,7 @@ class Evaluator:
 
         # load best model
         self.net.load_state_dict(torch.load('./out/model.pt'))
+        return track_record
 
     def test(self, epoch: Union[int, None] = None) -> Tuple[float, float, float]:
         # evaluate on test set

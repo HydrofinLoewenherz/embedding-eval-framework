@@ -1,0 +1,79 @@
+graph Model {
+	graph [fontname="Hilda 10" nodesep=.08 rankdir=LR ranksep=1 splines=line]
+	node [color=none fillcolor=gray fixedsize=true label="" shape=circle style=filled]
+	edge [arrowhead=vee arrowsize=.5 color=black]
+	subgraph layer_0 {
+		node [fillcolor=black shape=circle]
+		l0_n0
+		l0_n1
+	}
+	subgraph layer_1 {
+		node [fillcolor=gray shape=circle]
+		l1_n0
+		l1_n1
+		l1_n2 [fillcolor=red]
+		l1_n3
+	}
+	subgraph layer_2 {
+		node [fillcolor=gray shape=circle]
+		l2_n0
+		l2_n1
+		l2_n2
+		l2_n3 [fillcolor=red]
+	}
+	subgraph layer_3 {
+		node [fillcolor=gray shape=circle]
+		l3_n0
+		l3_n1
+		l3_n2
+		l3_n3
+	}
+	subgraph layer_4 {
+		node [fillcolor=black shape=circle]
+		l4_n0
+	}
+	l0_n0 -- l1_n0 [color=black]
+	l0_n0 -- l1_n1 [color=black]
+	l0_n0 -- l1_n2 [color=none]
+	l0_n0 -- l1_n3 [color=black]
+	l0_n1 -- l1_n0 [color=black]
+	l0_n1 -- l1_n1 [color=black]
+	l0_n1 -- l1_n2 [color=none]
+	l0_n1 -- l1_n3 [color=black]
+	l1_n0 -- l2_n0 [color=black]
+	l1_n0 -- l2_n1 [color=black]
+	l1_n0 -- l2_n2 [color=black]
+	l1_n0 -- l2_n3 [color=none]
+	l1_n1 -- l2_n0 [color=black]
+	l1_n1 -- l2_n1 [color=black]
+	l1_n1 -- l2_n2 [color=black]
+	l1_n1 -- l2_n3 [color=none]
+	l1_n2 -- l2_n0 [color=none]
+	l1_n2 -- l2_n1 [color=none]
+	l1_n2 -- l2_n2 [color=none]
+	l1_n2 -- l2_n3 [color=none]
+	l1_n3 -- l2_n0 [color=black]
+	l1_n3 -- l2_n1 [color=black]
+	l1_n3 -- l2_n2 [color=black]
+	l1_n3 -- l2_n3 [color=none]
+	l2_n0 -- l3_n0 [color=black]
+	l2_n0 -- l3_n1 [color=black]
+	l2_n0 -- l3_n2 [color=black]
+	l2_n0 -- l3_n3 [color=black]
+	l2_n1 -- l3_n0 [color=black]
+	l2_n1 -- l3_n1 [color=black]
+	l2_n1 -- l3_n2 [color=black]
+	l2_n1 -- l3_n3 [color=black]
+	l2_n2 -- l3_n0 [color=black]
+	l2_n2 -- l3_n1 [color=black]
+	l2_n2 -- l3_n2 [color=black]
+	l2_n2 -- l3_n3 [color=black]
+	l2_n3 -- l3_n0 [color=none]
+	l2_n3 -- l3_n1 [color=none]
+	l2_n3 -- l3_n2 [color=none]
+	l2_n3 -- l3_n3 [color=none]
+	l3_n0 -- l4_n0 [color=black]
+	l3_n1 -- l4_n0 [color=black]
+	l3_n2 -- l4_n0 [color=black]
+	l3_n3 -- l4_n0 [color=black]
+}
