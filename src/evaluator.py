@@ -104,8 +104,12 @@ class Evaluator:
         valid_split = self.args.dataset_split[1] / np.sum(self.args.dataset_split)
         test_split = self.args.dataset_split[2] / np.sum(self.args.dataset_split)
         unsampled_nodes = set(self.graph.nodes(data=False))
+        split_alg = self.args.subgraph_alg
+        # the split algorithm has to subsample ('none' does not work here)
+        if split_alg == "none":
+            split_alg = "rjs"
         self.test_graph = subgraphs.sub_of(
-            alg=self.args.subgraph_alg,
+            alg=split_alg,
             graph=self.graph,
             size=int(self.whole_dataset.n_nodes * test_split),
             alpha=self.args.subgraph_alpha,
@@ -113,7 +117,7 @@ class Evaluator:
         )
         unsampled_nodes -= set(self.test_graph.nodes(data=False))
         self.valid_graph = subgraphs.sub_of(
-            alg=self.args.subgraph_alg,
+            alg=split_alg,
             graph=nx.subgraph(self.graph, unsampled_nodes),
             size=int(self.whole_dataset.n_nodes * valid_split),
             alpha=self.args.subgraph_alpha,

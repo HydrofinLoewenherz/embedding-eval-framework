@@ -1,0 +1,1 @@
+Because of a little error, the random jump star data has double the amount of datapoints. But this should only give more concise results.
