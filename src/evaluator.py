@@ -10,7 +10,7 @@ import torch
 from torch import nn, Tensor
 from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torchmetrics.classification import BinaryAveragePrecision, BinaryConfusionMatrix, BinaryF1Score
+from torchmetrics.classification import BinaryAveragePrecision, BinaryConfusionMatrix, BinaryF1Score, BinaryPrecisionRecallCurve
 from typing import Union, Tuple
 
 from src.pytorchtools import EarlyStopping
@@ -76,6 +76,7 @@ class Evaluator:
         self.writer = SummaryWriter(writer_log_dir)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
+        self.pr_curve_fn = BinaryPrecisionRecallCurve().to(self.device)
         self.ap_score_fn = BinaryAveragePrecision().to(self.device)
         self.f1_score_fn = BinaryF1Score().to(self.device)
         self.bcm_fn = BinaryConfusionMatrix().to(self.device)
@@ -242,11 +243,11 @@ class Evaluator:
         self.net.load_state_dict(torch.load('./out/model.pt'))
         return track_record
 
-    def test(self, epoch: Union[int, None] = None) -> Tuple[float, float, float]:
+    def test(self, epoch: Union[int, None] = None) -> Tuple[float, float, float, float]:
         # evaluate on test set
         test_loss, test_preds = self.score(self.test_dataset.dataloader)
         test_ap = self.ap_score_fn(test_preds, self.test_dataset.ds_labels)
-        test_f1 = self.f1_score_fn(test_preds, self.test_dataset.ds_labels)
+        test_f1 = self.f1_score_fn(test_preds, self.test_dataset.ds_labels)  # score at threshold=0.5
         test_conf = self.bcm_fn(test_preds, self.test_dataset.ds_labels)
         self.writer.add_scalar('test_precision', test_ap, epoch)
         self.writer.add_scalar('test_f1', test_f1, epoch)
@@ -259,13 +260,22 @@ class Evaluator:
             epoch
         )
 
-        return test_loss, test_ap.item(), test_f1.item()
+        # get best threshold
+        precision, recall, thresholds = self.pr_curve_fn(test_preds, self.test_dataset.ds_labels)
+        f1_scores = (2 * precision * recall) / (precision + recall)
+        threshold = thresholds[np.argmax(f1_scores.cpu())].item()
+
+        return test_loss, test_ap.item(), test_f1.item(), threshold
 
     def eval(self, toroid: bool = False):
         # evaluate whole dataset (in batches)
         eval_loss, eval_preds = self.score(self.whole_dataset.dataloader)
         eval_ap = self.ap_score_fn(eval_preds, self.whole_dataset.ds_labels)
-        eval_f1 = self.f1_score_fn(eval_preds, self.whole_dataset.ds_labels)
+
+        # get best threshold
+        precision, recall, thresholds = self.pr_curve_fn(eval_preds, self.whole_dataset.ds_labels)
+        f1_scores = (2 * precision * recall) / (precision + recall)
+        threshold = thresholds[np.argmax(f1_scores.cpu())].item()
 
         # plot the graph prediction
         fig_size = 10
@@ -285,12 +295,12 @@ class Evaluator:
             ax=axs[1],
             graph=self.graph,
             prediction={i: p for i, p in enumerate(eval_preds.cpu().numpy())},
-            threshold=eval_f1.item(),
+            threshold=threshold,
             toroid=toroid,
         )
         visualization.draw_cbar(
             fig=fig,
             ax=axs[1],
             label=f"Prediction [score={eval_ap.item()}]",
-            threshold=eval_f1.item()
+            threshold=threshold
         )
