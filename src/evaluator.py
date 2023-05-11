@@ -30,7 +30,7 @@ class DatasetBuilder:
         self.n_edges = len(self.graph.edges(data=False))
 
         # build dataset
-        self.node_feature_pairs = itertools.combinations(list(self.graph.nodes(data="feature")), 2)
+        self.node_feature_pairs = list(itertools.combinations(list(self.graph.nodes(data="feature")), 2))
         values, labels = zip(*[
             (
                 # combined feature vector
@@ -267,7 +267,7 @@ class Evaluator:
 
         return test_loss, test_ap.item(), test_f1.item(), threshold
 
-    def eval(self, toroid: bool = False):
+    def eval(self, toroid: bool = False) -> plt.Figure:
         # evaluate whole dataset (in batches)
         eval_loss, eval_preds = self.score(self.whole_dataset.dataloader)
         eval_ap = self.ap_score_fn(eval_preds, self.whole_dataset.ds_labels)
@@ -277,30 +277,36 @@ class Evaluator:
         f1_scores = (2 * precision * recall) / (precision + recall)
         threshold = thresholds[np.argmax(f1_scores.cpu())].item()
 
+        node_pairs = [
+            (u, v)
+            for ((u, _), (v, _)) in self.whole_dataset.node_feature_pairs
+        ]
+
         # plot the graph prediction
         fig_size = 10
         fig, axs = plt.subplots(
             ncols=2,
-            figsize=(fig_size * 2, fig_size)
+            figsize=(fig_size, fig_size / 2.0)
         )
 
-        axs[0].set_title(f"Original", fontsize=12)
+        axs[0].set_title(f"Original")
         visualization.draw_graph(
             ax=axs[0],
             graph=self.graph,
             toroid=toroid,
         )
-        axs[1].set_title(f"Prediction", fontsize=12)
+        axs[1].set_title(f"Reconstruction [score={np.round(eval_ap.item(), decimals=4)}]")
         visualization.draw_prediction(
             ax=axs[1],
             graph=self.graph,
-            prediction={i: p for i, p in enumerate(eval_preds.cpu().numpy())},
+            prediction={node_pairs[i]: p for i, p in enumerate(eval_preds.cpu().numpy())},
             threshold=threshold,
             toroid=toroid,
         )
         visualization.draw_cbar(
             fig=fig,
             ax=axs[1],
-            label=f"Prediction [score={eval_ap.item()}]",
+            label=f"Prediction",
             threshold=threshold
         )
+        return fig

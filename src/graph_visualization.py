@@ -61,22 +61,24 @@ def draw_prediction(
 ):
     # remove all edges that have a prediction below the threshold
     graph = deepcopy(graph)
-    graph.remove_edges_from([
-        edge
-        for edge in graph.edges
-        if edge in prediction and prediction[edge] < threshold
-    ])
+
+    vis_graph = nx.Graph()
+    vis_graph.add_nodes_from(graph.nodes(data=True))
+    vis_graph.add_edges_from(
+        (u, v)
+        for (u, v), p in prediction.items()
+        if p >= threshold
+    )
+
     if toroid:
-        graph = on_toroid(graph)
+        vis_graph = on_toroid(vis_graph)
+
     # limit graph (in case the graph is on a toroid)
     ax.set_aspect('equal')
     ax.set_xlim(left=0, right=1)
     ax.set_ylim(bottom=0, top=1)
     # set edge colors for subgraph nodes and edges
-    node_color = [
-        cmap(1.0)
-        for _ in graph.nodes
-    ]
+    node_color = [cmap(1.0)] * len(vis_graph.nodes)
     edge_color = [
         pred_cmap(
             # remap prediction into reduced colormap (map 'threshold' as 0)
@@ -84,12 +86,12 @@ def draw_prediction(
             if remap else
             prediction[(unshifted(u), unshifted(v))]
         )
-        for (u, v) in graph.edges
+        for (u, v) in vis_graph.edges
     ]
     # draw graph
     nx.draw_networkx(
-        graph,
-        pos=graph.nodes.data("pos"),
+        vis_graph,
+        pos=vis_graph.nodes.data("pos"),
         node_color=node_color,
         edge_color=edge_color,
         with_labels=False,
