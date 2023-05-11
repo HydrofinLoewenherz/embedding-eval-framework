@@ -30,6 +30,7 @@ class DatasetBuilder:
         self.n_edges = len(self.graph.edges(data=False))
 
         # build dataset
+        # expect the nodes to be in random order, as such we effectively choose one of the two f_uv and f_vu at random
         self.node_feature_pairs = list(itertools.combinations(list(self.graph.nodes(data="feature")), 2))
         values, labels = zip(*[
             (
@@ -102,8 +103,9 @@ class Evaluator:
         ).to(device)
 
         # split graph and build datasets
-        valid_split = self.args.dataset_split[1] / np.sum(self.args.dataset_split)
-        test_split = self.args.dataset_split[2] / np.sum(self.args.dataset_split)
+        dataset_split = list(map(int, self.args.dataset_split.split("-")))
+        valid_split = dataset_split[1] / np.sum(dataset_split)
+        test_split = dataset_split[2] / np.sum(dataset_split)
         unsampled_nodes = set(self.graph.nodes(data=False))
         split_alg = self.args.subgraph_alg
         # the split algorithm has to subsample ('none' does not work here)

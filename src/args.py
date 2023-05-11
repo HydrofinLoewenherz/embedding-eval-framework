@@ -2,6 +2,11 @@ import math
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
+# TODO update all datasets to updated "dataset_split" format
+# result_drop = result.drop(labels=["dataset_split"], axis=1)
+# result_drop["dataset_split"] = "60-20-20"
+# result_drop
+
 
 @dataclass(
     repr=True,
@@ -13,7 +18,7 @@ class Args:
     batch_size: int = field(default=64)
     sort_dataset: bool = field(default=False)
     std_dataset: bool = field(default=True)
-    dataset_split: Tuple[float, float, float] = field(default=(60, 20, 20))
+    dataset_split: str = field(default="60-20-20")
     early_stopping: bool = field(default=True)
     threshold_stopping: bool = field(default=True)
     # graph settings
