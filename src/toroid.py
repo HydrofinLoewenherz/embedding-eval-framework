@@ -6,19 +6,24 @@ from typing import Union
 node_shifts = {
     "none": (0, 0),
     "top": (1, 0),
-    "down": (-1, 0),
+    "bottom": (-1, 0),
     "left": (0, -1),
     "right": (0, 1),
-    "top-left": (1, -1),
-    "top-right": (1, 1),
-    "bottom-left": (-1, -1),
-    "bottom-right": (-1, 1),
+    "top_left": (1, -1),
+    "top_right": (1, 1),
+    "bottom_left": (-1, -1),
+    "bottom_right": (-1, 1),
 }
 
 
-def back_shift(key: str) -> str:
+def apply_shift(key: str, shift: str) -> str:
     (sx, sy) = node_shifts[key]
-    return list(node_shifts.keys())[list(node_shifts.values()).index((-sx, -sy))]
+    (ssx, ssy) = node_shifts[shift]
+    # find shift that matches double shifted delta
+    shifts = [k for i, [k, (vx, vy)] in enumerate(node_shifts.items()) if vx == sx + ssx and vy == sy + ssy]
+    if len(shifts) == 0:
+        return ""
+    return shifts[0]
 
 
 def on_toroid(graph: nx.Graph) -> nx.Graph:
@@ -49,13 +54,13 @@ def on_toroid(graph: nx.Graph) -> nx.Graph:
         sorted([
             (u, v, {
                 **d,
-                "shift": key,
+                "shift": shift,
                 "dist": math.dist(
                     positions[f"{u}_none"],
                     (positions[f"{v}_none"][0] + sx, positions[f"{v}_none"][1] + sy)
                 )
             })
-            for [key, (sx, sy)] in node_shifts.items()
+            for [shift, (sx, sy)] in node_shifts.items()
         ], key=lambda x: x[2]["dist"])[0]
         for (u, v, d) in graph.edges(data=True)
     ]
@@ -64,18 +69,13 @@ def on_toroid(graph: nx.Graph) -> nx.Graph:
     # un-shifted edges are added twice, but that should not matter
     t_graph.add_edges_from([
         (
-            f"{u}_none",
-            f"{v}_{d['shift']}",
-            d
-        )
-        if lr else
-        (
-            f"{v}_none",
-            f"{u}_{back_shift(d['shift'])}",
+            f"{u}_{shift}",
+            f"{v}_{double_shift}",
             d
         )
         for (u, v, d) in shortest_edges
-        for lr in [True, False]
+        for [shift, _] in node_shifts.items()
+        if (double_shift := apply_shift(shift, d['shift'])) != ""
     ])
 
     # remove shifted nodes that are not of use
