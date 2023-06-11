@@ -312,3 +312,42 @@ class Evaluator:
             threshold=threshold
         )
         return fig
+
+    def classify(self, toroid: bool = False) -> plt.Figure:
+        # evaluate whole dataset (in batches)
+        eval_loss, eval_preds = self.score(self.whole_dataset.dataloader)
+        eval_ap = self.ap_score_fn(eval_preds, self.whole_dataset.ds_labels)
+
+        # get best threshold
+        precision, recall, thresholds = self.pr_curve_fn(eval_preds, self.whole_dataset.ds_labels)
+        f1_scores = (2 * precision * recall) / (precision + recall)
+        threshold = thresholds[np.argmax(f1_scores.cpu().numpy())].item()
+
+        node_pairs = [
+            (u, v)
+            for ((u, _), (v, _)) in self.whole_dataset.node_feature_pairs
+        ]
+
+        # plot the graph prediction
+        fig_size = 10
+        fig, axs = plt.subplots(
+            ncols=2,
+            figsize=(fig_size, fig_size / 2.0)
+        )
+
+        axs[0].set_title(f"Original")
+        visualization.draw_graph(
+            ax=axs[0],
+            graph=self.graph,
+            toroid=toroid,
+        )
+        axs[1].set_title(f"False Negatives and Positives [score={np.round(eval_ap.item(), decimals=4)}]")
+        visualization.draw_classification(
+            ax=axs[1],
+            graph=self.graph,
+            prediction={node_pairs[i]: p for i, p in enumerate(eval_preds.cpu().numpy())},
+            labels={node_pairs[i]: l for i, l in enumerate(self.whole_dataset.ds_labels.cpu().numpy())},
+            threshold=threshold,
+            toroid=toroid,
+        )
+        return fig
