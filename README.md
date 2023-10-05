@@ -1,1 +1,1 @@
-This project is part of the bachelor thesis of Paul Wagner. **This is an unfinished state!**
+This project is part of the bachelor thesis of Paul Wagner.
